@@ -107,10 +107,10 @@ void HAL_DFSDM_FilterMspInit(DFSDM_Filter_HandleTypeDef* hdfsdm_filter)
     }
 
     /* Peripheral clock enable */
-    HAL_RCC_DFSDM1_CLK_ENABLED++;
-    if(HAL_RCC_DFSDM1_CLK_ENABLED==1){
+//    HAL_RCC_DFSDM1_CLK_ENABLED++;
+//    if(HAL_RCC_DFSDM1_CLK_ENABLED==1){
       __HAL_RCC_DFSDM1_CLK_ENABLE();
-    }
+//    }
 
     __HAL_RCC_GPIOC_CLK_ENABLE();
     /**DFSDM1 GPIO Configuration
