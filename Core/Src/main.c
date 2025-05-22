@@ -161,6 +161,10 @@ int main(void)
       // MX_DMA_Init() はDMAコントローラのクロックやIRQを再設定します。
       // DMAハンドル(hdma_dfsdm1_flt0)の再設定はHAL_DFSDM_FilterMspInitで行われます。
       MX_DMA_Init();
+
+      hdma_dfsdm1_flt0.Instance = DMA2_Stream0; // 念のためインスタンスも再設定
+      hdma_dfsdm1_flt0.Init.Mode = DMA_NORMAL;  // DMAモードをノーマルに設定
+
       // MX_DFSDM1_Init() はDFSDMのレジスタを再設定し、HAL_DFSDM_FilterMspInitを呼び出して
       // GPIOやDMAの再設定を行います。
       MX_DFSDM1_Init();
@@ -510,6 +514,8 @@ void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_
   */
 void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filter)
 {
+  printf("!!! HAL_DFSDM_FilterRegConvCpltCallback Entered !!!\r\n"); // ★追加
+  HAL_GPIO_TogglePin(GPIOB, LD2_Pin); // ★追加 (LD2が青色LEDの場合など、別のLEDで試す)
   /* USER CODE BEGIN FilterRegConvCpltCallback */
   if (hdfsdm_filter == &hdfsdm1_filter0) {
     // DMA転送が完了したので、DFSDMのDMAを停止する
