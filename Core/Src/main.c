@@ -36,7 +36,7 @@
 #define AUDIO_SAMPLING_FREQUENCY 16000
 #define AUDIO_BUFFER_SIZE (AUDIO_SAMPLING_FREQUENCY * 1) // 1秒分のバッファサイズ
 #define SOUND_AVOID_DELAY_MS 150
-#define PRINT_DATA_COUNT 30 // 表示する先頭データの数
+#define PRINT_DATA_COUNT 8000 // 表示する先頭データの数
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,12 +72,65 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void); // DMAの初期化 (CubeMXでNormal Modeに設定)
 static void MX_DFSDM1_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void MX_DFSDM1_Init2nd(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void MX_DFSDM1_Init2nd(void)
+{
+  /* USER CODE BEGIN DFSDM1_Init 0 */
+  // この関数はDeInit後に再呼び出しされるため、毎回設定が適用される
+  /* USER CODE END DFSDM1_Init 0 */
 
+  /* USER CODE BEGIN DFSDM1_Init 1 */
+
+  /* USER CODE END DFSDM1_Init 1 */
+  hdfsdm1_filter0.Instance = DFSDM1_Filter0;
+  hdfsdm1_filter0.Init.RegularParam.Trigger = DFSDM_FILTER_SW_TRIGGER; // ソフトウェアトリガー
+  hdfsdm1_filter0.Init.RegularParam.FastMode = ENABLE;
+  hdfsdm1_filter0.Init.RegularParam.DmaMode = ENABLE; // DMAモード有効
+  hdfsdm1_filter0.Init.FilterParam.SincOrder = DFSDM_FILTER_SINC3_ORDER;
+  // PCLK2 = 16MHz (SystemClock_Configより)
+  // DFSDM_CKOUT_Pin_Clock = PCLK2 / hdfsdm1_channel0.Init.OutputClock.Divider
+  //                     = 16MHz / 8 = 2MHz (これがPDMマイクへの供給クロックかつDFSDMフィルターの入力クロックベース)
+  // Audio_Sampling_Frequency = DFSDM_CKOUT_Pin_Clock / hdfsdm1_filter0.Init.FilterParam.Oversampling
+  //                          = 2MHz / 125 = 16000 Hz = 16kHz
+  hdfsdm1_filter0.Init.FilterParam.Oversampling = 125;
+  hdfsdm1_filter0.Init.FilterParam.IntOversampling = 1;
+  if (HAL_DFSDM_FilterInit(&hdfsdm1_filter0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+//  hdfsdm1_channel0.Instance = DFSDM1_Channel0;
+//  hdfsdm1_channel0.Init.OutputClock.Activation = ENABLE;
+//  hdfsdm1_channel0.Init.OutputClock.Selection = DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM; // APB2 clock (PCLK2)
+//  hdfsdm1_channel0.Init.OutputClock.Divider = 8; // DFSDM_CKOUT = PCLK2 / 8 => 16MHz / 8 = 2MHz
+//  hdfsdm1_channel0.Init.Input.Multiplexer = DFSDM_CHANNEL_EXTERNAL_INPUTS;
+//  hdfsdm1_channel0.Init.Input.DataPacking = DFSDM_CHANNEL_STANDARD_MODE;
+//  hdfsdm1_channel0.Init.Input.Pins = DFSDM_CHANNEL_SAME_CHANNEL_PINS; // DATIN0 pin
+//  hdfsdm1_channel0.Init.SerialInterface.Type = DFSDM_CHANNEL_SPI_FALLING; // PDMマイクのデータエッジ
+//  hdfsdm1_channel0.Init.SerialInterface.SpiClock = DFSDM_CHANNEL_SPI_CLOCK_INTERNAL; // CKOUTを使用
+//  hdfsdm1_channel0.Init.Awd.FilterOrder = DFSDM_CHANNEL_FASTSINC_ORDER; // AWD未使用なら影響小
+//  hdfsdm1_channel0.Init.Awd.Oversampling = 1;
+//  hdfsdm1_channel0.Init.Offset = 0;
+//  hdfsdm1_channel0.Init.RightBitShift = 0x02; // 24bitデータをMSB側に寄せるための調整など (データシート参照)
+//  if (HAL_DFSDM_ChannelInit(&hdfsdm1_channel0) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+
+  // フィルターにレギュラー変換用のチャンネルを設定
+  if (HAL_DFSDM_FilterConfigRegChannel(&hdfsdm1_filter0, DFSDM_CHANNEL_0, DFSDM_CONTINUOUS_CONV_ON) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DFSDM1_Init 2 */
+  // HAL_DFSDM_FilterInitの中でMSPInitが呼ばれ、その中でDMAの初期化とリンクが行われる。
+  // hdma_dfsdm1_flt0 がこのDFSDMフィルターにリンクされる。
+  /* USER CODE END DFSDM1_Init 2 */
+}
 /* USER CODE END 0 */
 
 /**
@@ -155,7 +208,12 @@ int main(void)
           printf("DMA DeInit Error!\r\n");
           // Error_Handler(); // DMA DeInitエラーは必ずしも致命的ではない場合もある
       }
-
+      // ★★★ チャンネルのDeInitを追加 ★★★
+//      if (HAL_DFSDM_ChannelDeInit(&hdfsdm1_channel0) != HAL_OK) {
+//        printf("DFSDM Channel DeInit Error!\r\n");
+//        Error_Handler();
+//      }
+      // ★★★-------------------------★★★
 
       // DFSDMとDMAを再初期化
       // MX_DMA_Init() はDMAコントローラのクロックやIRQを再設定します。
@@ -167,7 +225,7 @@ int main(void)
 
       // MX_DFSDM1_Init() はDFSDMのレジスタを再設定し、HAL_DFSDM_FilterMspInitを呼び出して
       // GPIOやDMAの再設定を行います。
-      MX_DFSDM1_Init();
+      MX_DFSDM1_Init2nd();
 
       // DFSDM+DMA をノーマルモードで開始
       // audio_bufferにAUDIO_BUFFER_SIZE分のデータを格納
@@ -325,8 +383,7 @@ static void MX_DFSDM1_Init(void)
   hdfsdm1_channel0.Init.Awd.Oversampling = 1;
   hdfsdm1_channel0.Init.Offset = 0;
   hdfsdm1_channel0.Init.RightBitShift = 0x02; // 24bitデータをMSB側に寄せるための調整など (データシート参照)
-//  if (HAL_DFSDM_ChannelInit(&hdfsdm1_channel0) != HAL_OK)
-  if (HAL_DFSDM_FilterInit(&hdfsdm1_filter0) != HAL_OK)
+  if (HAL_DFSDM_ChannelInit(&hdfsdm1_channel0) != HAL_OK)
   {
     Error_Handler();
   }

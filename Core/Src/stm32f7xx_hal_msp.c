@@ -107,10 +107,10 @@ void HAL_DFSDM_FilterMspInit(DFSDM_Filter_HandleTypeDef* hdfsdm_filter)
     }
 
     /* Peripheral clock enable */
-//    HAL_RCC_DFSDM1_CLK_ENABLED++;
-//    if(HAL_RCC_DFSDM1_CLK_ENABLED==1){
+    HAL_RCC_DFSDM1_CLK_ENABLED++;
+    if(HAL_RCC_DFSDM1_CLK_ENABLED==1){
       __HAL_RCC_DFSDM1_CLK_ENABLE();
-//    }
+    }
 
     __HAL_RCC_GPIOC_CLK_ENABLE();
     /**DFSDM1 GPIO Configuration
@@ -235,7 +235,7 @@ void HAL_DFSDM_FilterMspDeInit(DFSDM_Filter_HandleTypeDef* hdfsdm_filter)
   if(DFSDM1_Init == 0)
     {
     /* USER CODE BEGIN DFSDM1_MspDeInit 0 */
-
+	  HAL_RCC_DFSDM1_CLK_ENABLED = 0; // ← ★USER CODEブロック内にカウンタリセットを追加★
     /* USER CODE END DFSDM1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_DFSDM1_CLK_DISABLE();
